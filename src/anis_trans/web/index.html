@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANIS Trans</title>
+<style>
+:root{
+  --bg:#f6f7f9;--panel:#ffffff;--text:#1d2025;--muted:#646b75;--line:#d9dde3;
+  --accent:#2f6fde;--accent-text:#ffffff;--soft:#eef3fc;--warn:#b54708;--err:#c4320a;--ok:#1a7f4b;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#15171a;--panel:#1e2125;--text:#e6e8eb;--muted:#9aa1ab;--line:#33383f;
+    --accent:#6c9cf0;--accent-text:#0e1116;--soft:#232a36;--warn:#f0a35e;--err:#ff7b5c;--ok:#5cc98d;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR","Noto Sans JP",sans-serif}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
+header .ver{color:var(--muted);font-size:13px}
+header .spacer{flex:1}
+main{max-width:1180px;margin:0 auto;padding:18px 20px 40px}
+.tabs{display:flex;gap:4px;margin-bottom:14px}
+.tab{border:1px solid var(--line);background:var(--panel);color:var(--text);padding:7px 16px;border-radius:8px;cursor:pointer;font:inherit}
+.tab[aria-selected=true]{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+.bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+label.inline{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:14px}
+select,input[type=number],input[type=file]{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:5px 8px}
+input[type=number]{width:64px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--text);padding:7px 14px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
+.pane h2{font-size:13px;font-weight:600;color:var(--muted);margin:0;padding:9px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+textarea{width:100%;border:0;background:transparent;color:var(--text);font-size:16px;line-height:1.6;font-family:inherit;padding:12px;resize:vertical;outline:none}
+textarea.main{min-height:220px}
+textarea.ctx{min-height:64px;font-size:14px}
+.out{white-space:pre-wrap;padding:12px;min-height:220px;font-size:16px;line-height:1.6;overflow-wrap:anywhere}
+.out.placeholder{color:var(--muted)}
+details.ctx{margin:14px 0;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+details.ctx summary{cursor:pointer;padding:10px 12px;color:var(--muted);font-size:14px}
+details.ctx .grid{padding:0 12px 12px}
+details.ctx .pane{border-radius:8px}
+.status{font-size:13px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--muted);margin-right:5px;vertical-align:1px}
+.dot.ok{background:var(--ok)}.dot.busy{background:var(--warn)}.dot.err{background:var(--err)}
+.err{color:var(--err)}
+.hint{color:var(--muted);font-size:13px}
+progress{width:260px;height:10px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+th{color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel)}
+td.n{color:var(--muted);width:48px}
+.tablewrap{max-height:460px;overflow:auto}
+.copy{font-size:12px;padding:2px 9px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>ANIS Trans</h1><span class="ver" id="ver"></span>
+  <span class="spacer"></span>
+  <label class="inline">장치
+    <select id="device" title="auto: CUDA GPU가 있으면 GPU, 없으면 CPU">
+      <option value="auto">자동</option><option value="cpu">CPU</option>
+      <option value="cuda">GPU (CUDA)</option>
+    </select></label>
+  <label class="inline">정밀도
+    <select id="compute">
+      <option value="auto">자동</option><option value="int8">int8</option>
+      <option value="int8_float16">int8+float16 (GPU)</option><option value="float16">float16 (GPU)</option>
+      <option value="float32">float32</option>
+    </select></label>
+  <button id="apply">적용</button>
+</header>
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="single">문장 번역</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="batch">일괄 번역</button>
+  </div>
+
+  <div class="bar">
+    <label class="inline">방향
+      <select id="direction">
+        <option value="auto">자동 판별</option><option value="ja-ko">일본어 → 한국어</option><option value="ko-ja">한국어 → 일본어</option>
+      </select></label>
+    <button id="swap" title="방향 바꾸기">⇄</button>
+    <label class="inline">줄 종류
+      <select id="linetype"><option>대사</option><option>독백</option><option>나레이션</option><option>선택지</option><option>시스템</option></select></label>
+    <span class="spacer" style="flex:1"></span>
+    <div class="status"><span><span class="dot" id="dot"></span><span id="state">준비 중…</span></span><span id="timing"></span></div>
+  </div>
+
+  <section id="tab-single">
+    <div class="grid">
+      <div class="pane">
+        <h2>원문 <label class="inline" style="font-weight:400"><input type="checkbox" id="perline"> 줄마다 따로 번역</label></h2>
+        <textarea class="main" id="src" placeholder="번역할 문장을 입력하세요 (Ctrl+Enter로 번역)" autofocus></textarea>
+      </div>
+      <div class="pane">
+        <h2>번역 <button class="copy" id="copy">복사</button></h2>
+        <div class="out placeholder" id="dst">번역 결과가 여기에 나옵니다.</div>
+      </div>
+    </div>
+    <details class="ctx" id="ctxbox">
+      <summary>앞뒤 문맥 (선택) — 대상 문장 앞뒤에 오는 대사를 넣으면 말투·지시어를 더 잘 맞춥니다</summary>
+      <div class="grid">
+        <div class="pane"><h2>앞 문맥 (한 줄에 한 문장, 오래된 것부터)</h2><textarea class="ctx" id="prev"></textarea></div>
+        <div class="pane"><h2>뒷 문맥 (한 줄에 한 문장, 가까운 것부터)</h2><textarea class="ctx" id="next"></textarea></div>
+      </div>
+    </details>
+    <div class="bar"><button class="primary" id="go">번역</button><span class="hint">입력과 번역은 모두 이 컴퓨터 안에서만 처리됩니다.</span></div>
+  </section>
+
+  <section id="tab-batch" hidden>
+    <div class="bar">
+      <input type="file" id="file" accept=".txt,.jsonl,text/plain">
+      <label class="inline">앞 문맥 <input type="number" id="cp" min="0" max="10" value="0"> 줄</label>
+      <label class="inline">뒷 문맥 <input type="number" id="cn" min="0" max="10" value="0"> 줄</label>
+      <button class="primary" id="bgo" disabled>일괄 번역</button>
+      <progress id="bprog" value="0" max="1" hidden></progress><span class="hint" id="bmsg"></span>
+    </div>
+    <p class="hint">.txt는 한 줄을 한 문장으로 번역합니다(빈 줄 유지). .jsonl은 줄마다 {"text", "prev", "next", "direction"} 형식을 받습니다. 직접 붙여넣으려면 아래 칸을 쓰세요.</p>
+    <div class="pane" style="margin-bottom:12px"><h2>붙여넣기 (파일 대신)</h2><textarea class="ctx" id="paste" style="min-height:120px" placeholder="한 줄에 한 문장"></textarea></div>
+    <div class="bar"><button id="dl" disabled>결과 내려받기</button><button id="dlsrc" disabled>원문+번역 TSV 내려받기</button></div>
+    <div class="pane"><div class="tablewrap"><table><thead><tr><th>#</th><th>원문</th><th>번역</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+  </section>
+  <footer class="hint" id="license" style="margin-top:28px;border-top:1px solid var(--line);padding-top:12px"></footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const H = {"Content-Type":"application/json","X-Anis-Trans":"1"};
+let info = null, batchOut = null, batchName = "result", batchKind = "txt", batchRows = null;
+
+async function api(path, body){
+  const r = await fetch(path, body === undefined ? {} : {method:"POST", headers:H, body:JSON.stringify(body)});
+  const j = await r.json();
+  if(!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function setState(kind, text){ $("dot").className = "dot " + kind; $("state").textContent = text; }
+
+async function refresh(){
+  try{ info = await api("/api/info"); }catch(e){ setState("err","서버 연결 끊김"); return; }
+  $("ver").textContent = info.version;
+  if(info.license) $("license").textContent = info.license;
+  if(!refresh.synced && info.requested){  // 처음 한 번: 서버를 띄울 때 고른 장치·정밀도를 화면에 반영
+    $("device").value = info.requested.device;
+    if([...$("compute").options].some(o => o.value === info.requested.compute_type)) $("compute").value = info.requested.compute_type;
+    refresh.synced = true;
+  }
+  for(const o of $("device").options){ o.disabled = !info.devices.includes(o.value); }
+  if(info.loading){ setState("busy","모델 불러오는 중…"); setTimeout(refresh, 700); }
+  else if(info.error){ setState("err", "오류: " + info.error); }
+  else if(info.engine){
+    const e = info.engine;
+    setState(e.warning ? "busy" : "ok", `${e.device.toUpperCase()} · ${e.backend} · ${e.compute_type}` + (e.warning ? ` (${e.warning})` : ""));
+  }
+  $("go").disabled = !info.engine || info.loading;
+  updateBatchButton();
+}
+
+$("device").onchange = () => { $("compute").value = "auto"; };
+$("apply").onclick = async () => {
+  try{
+    await api("/api/device", {device:$("device").value, compute_type:$("compute").value});
+    setState("busy","모델 불러오는 중…"); setTimeout(refresh, 400);
+  }catch(e){ setState("err", e.message); }
+};
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x === t));
+  $("tab-single").hidden = t.dataset.tab !== "single";
+  $("tab-batch").hidden = t.dataset.tab !== "batch";
+});
+
+$("swap").onclick = () => {
+  const d = $("direction");
+  d.value = d.value === "ja-ko" ? "ko-ja" : d.value === "ko-ja" ? "ja-ko" : "ko-ja";
+  const out = $("dst").classList.contains("placeholder") ? "" : $("dst").textContent;
+  if(out){ $("src").value = out; $("dst").textContent = ""; }
+};
+
+async function translate(){
+  const text = $("src").value;
+  if(!text.trim()) return;
+  $("go").disabled = true; $("timing").textContent = "번역 중…";
+  const common = {direction:$("direction").value, line_type:$("linetype").value};
+  try{
+    let j;
+    if($("perline").checked){
+      j = await api("/api/translate", {...common, lines:text.split(/\r?\n/)});
+      $("dst").textContent = j.results.map(r => r.error ? `[오류] ${r.error}` : r.text).join("\n");
+    }else{
+      j = await api("/api/translate", {...common, text, prev:$("prev").value, next:$("next").value});
+      const r = j.results[0];
+      $("dst").textContent = r.error ? `[오류] ${r.error}` : r.text;
+      if(r.dropped_context) $("dst").textContent += `\n\n(문맥이 길어 ${r.dropped_context}개를 뺐습니다)`;
+    }
+    $("dst").classList.remove("placeholder");
+    const dirs = [...new Set(j.results.map(r => r.direction))].map(d => d === "ja-ko" ? "일→한" : "한→일").join(", ");
+    $("timing").textContent = `${dirs} · ${j.seconds.toFixed(2)}초`;
+  }catch(e){ $("timing").textContent = ""; $("dst").textContent = "오류: " + e.message; }
+  $("go").disabled = false;
+}
+$("go").onclick = translate;
+$("src").addEventListener("keydown", e => { if(e.key === "Enter" && (e.ctrlKey || e.metaKey)){ e.preventDefault(); translate(); } });
+$("copy").onclick = () => { if(!$("dst").classList.contains("placeholder")) navigator.clipboard?.writeText($("dst").textContent); };
+
+// ---------- 일괄 번역 ----------
+let fileLines = null;
+function updateBatchButton(){
+  $("bgo").disabled = !(info && info.engine && !info.loading) || !(fileLines || $("paste").value.trim());
+}
+$("paste").addEventListener("input", () => { fileLines = null; $("file").value = ""; batchKind = "txt"; batchName = "pasted"; updateBatchButton(); });
+$("file").onchange = async () => {
+  const f = $("file").files[0];
+  if(!f){ fileLines = null; updateBatchButton(); return; }
+  let text = await f.text();
+  if(text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  batchKind = f.name.toLowerCase().endsWith(".jsonl") ? "jsonl" : "txt";
+  batchName = f.name.replace(/\.[^.]+$/, "");
+  fileLines = text.split(/\r?\n/);
+  if(fileLines.length && fileLines[fileLines.length-1] === "") fileLines.pop();
+  $("bmsg").textContent = `${f.name}: ${fileLines.length}줄`;
+  updateBatchButton();
+};
+
+$("bgo").onclick = async () => {
+  let lines = fileLines || $("paste").value.split(/\r?\n/);
+  let rows = null, body;
+  const common = {direction:$("direction").value, line_type:$("linetype").value};
+  if(batchKind === "jsonl" && fileLines){
+    try{ rows = lines.filter(l => l.trim()).map(l => { const r = JSON.parse(l); return typeof r === "string" ? {text:r} : r; }); }
+    catch(e){ $("bmsg").textContent = "JSONL 형식 오류: " + e.message; return; }
+    // jsonl은 줄마다 문맥·방향이 다를 수 있어 한 줄씩 묶음 요청으로 보낸다
+    body = null;
+  }else{
+    body = {...common, lines, ctx_prev:+$("cp").value, ctx_next:+$("cn").value};
+  }
+  $("bgo").disabled = true; $("dl").disabled = $("dlsrc").disabled = true;
+  $("bprog").hidden = false; $("bprog").value = 0; $("rows").innerHTML = "";
+  const t0 = performance.now();
+  try{
+    let results;
+    if(body){
+      const {id} = await api("/api/batch", body);
+      results = await poll(id, lines.length);
+    }else{
+      results = [];
+      for(let i = 0; i < rows.length; i++){
+        const r = rows[i];
+        const j = await api("/api/translate", {direction: r.direction && r.direction !== "auto" ? r.direction : common.direction,
+          line_type: common.line_type, text: r.text, prev: r.prev || "", next: r.next || ""});
+        results.push(j.results[0]);
+        $("bprog").value = (i+1)/rows.length; $("bmsg").textContent = `${i+1}/${rows.length}`;
+      }
+      lines = rows.map(r => r.text);
+    }
+    batchOut = results; batchRows = rows;
+    renderRows(lines, results);
+    const sec = (performance.now() - t0)/1000;
+    const errs = results.filter(r => r.error).length;
+    $("bmsg").textContent = `완료: ${results.length}줄, ${sec.toFixed(1)}초` + (errs ? `, 오류 ${errs}줄` : "");
+    $("dl").disabled = false; $("dlsrc").disabled = batchKind === "jsonl";
+    window._batchLines = lines;
+  }catch(e){ $("bmsg").textContent = "오류: " + e.message; }
+  $("bprog").hidden = true; updateBatchButton();
+};
+
+async function poll(id, total){
+  while(true){
+    const j = await api("/api/job/" + id);
+    $("bprog").value = total ? j.done/total : 1;
+    $("bmsg").textContent = `${j.done}/${total}`;
+    if(j.status === "done") return j.results;
+    if(j.status === "error") throw new Error(j.error);
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+function renderRows(lines, results){
+  const tb = $("rows"), frag = document.createDocumentFragment();
+  const max = Math.min(lines.length, 2000);
+  for(let i = 0; i < max; i++){
+    const tr = document.createElement("tr");
+    const r = results[i];
+    for(const [cls, v] of [["n", i+1], ["", lines[i]], ["", r.error ? "[오류] " + r.error : r.text]]){
+      const td = document.createElement("td"); if(cls) td.className = cls; td.textContent = v; tr.appendChild(td);
+    }
+    frag.appendChild(tr);
+  }
+  tb.appendChild(frag);
+  if(lines.length > max) $("bmsg").textContent += ` (미리보기는 앞 ${max}줄)`;
+}
+
+function download(name, text){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type:"text/plain;charset=utf-8"}));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const oneLine = s => s.replace(/\r?\n/g, " <br> ");
+$("dl").onclick = () => {
+  if(!batchOut) return;
+  if(batchKind === "jsonl" && batchRows){
+    download(batchName + ".translated.jsonl", batchRows.map((r, i) => JSON.stringify({...r, translation: batchOut[i].text, ...(batchOut[i].error ? {error: batchOut[i].error} : {})})).join("\n") + "\n");
+  }else{
+    download(batchName + ".translated.txt", batchOut.map(r => oneLine(r.text)).join("\n") + "\n");
+  }
+};
+$("dlsrc").onclick = () => {
+  if(!batchOut) return;
+  download(batchName + ".translated.tsv", window._batchLines.map((l, i) => `${l}\t${oneLine(batchOut[i].text)}`).join("\n") + "\n");
+};
+
+refresh();
+</script>
+</body>
+</html>

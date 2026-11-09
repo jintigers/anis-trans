@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+# ANIS Trans 웹 GUI 실행기 (Linux / macOS). 심볼릭 링크로 PATH에 걸어 두어도 된다.
+SELF="$0"
+while [ -L "$SELF" ]; do
+  L="$(readlink "$SELF")"
+  case "$L" in /*) SELF="$L" ;; *) SELF="$(dirname "$SELF")/$L" ;; esac
+done
+DIR="$(cd "$(dirname "$SELF")" && pwd)"
+if [ ! -x "$DIR/.venv/bin/python" ]; then
+  echo "먼저 $DIR/install.sh 를 실행하세요." >&2
+  exit 1
+fi
+exec "$DIR/.venv/bin/python" -m anis_trans.web "$@"

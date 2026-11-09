@@ -1,0 +1,29 @@
+[project]
+name = "anis-trans"
+version = "0.1.0"
+description = "ANIS Trans — 일본어↔한국어 오프라인 번역기 (CLI, 웹 GUI, 로컬 API 서버)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE-ko.md" }
+dependencies = [
+    "ctranslate2>=4.5,<5",
+    "sentencepiece>=0.2",
+]
+
+[project.optional-dependencies]
+# NVIDIA GPU용 cuBLAS (CUDA 12 툴킷을 따로 설치하지 않았을 때). macOS에는 필요 없음
+gpu = ["nvidia-cublas-cu12; platform_system != 'Darwin'"]
+# 독립 실행 파일 빌드
+build = ["pyinstaller>=6.6"]
+
+[project.scripts]
+anis-trans = "anis_trans.cli:main"
+anis-trans-gui = "anis_trans.web:main"
+anis-trans-server = "anis_trans.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/anis_trans"]

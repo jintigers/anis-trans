@@ -1,0 +1,23 @@
+{
+ "name": "ANIS Trans",
+ "version": "0.1.0",
+ "description": "일본어↔한국어 번역 모델, 약 3억 파라미터",
+ "directions": [
+  "ja-ko",
+  "ko-ja"
+ ],
+ "license": "초안 — LICENSE-ko.md / LICENSE-en.md",
+ "decoding": {
+  "num_beams": 4,
+  "max_source_tokens": 1024,
+  "strip_ids_le": 3
+ },
+ "format": {
+  "engine": "ctranslate2",
+  "stored_as": "int8",
+  "compute": {
+   "cpu": "int8",
+   "cuda": "float16"
+  }
+ }
+}

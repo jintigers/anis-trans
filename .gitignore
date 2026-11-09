@@ -1,0 +1,10 @@
+# 모델 파일은 저장소에 넣지 않습니다 (krmod.anis.co.kr 다운로드에서 배포)
+model/ct2/
+model/tokenizer.model
+
+.venv/
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
